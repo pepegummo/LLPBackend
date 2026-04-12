@@ -1,0 +1,125 @@
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { SupabaseService } from '../supabase/supabase.service';
+
+@Injectable()
+export class EvaluationsService {
+  constructor(private readonly supabase: SupabaseService) {}
+
+  async getByTeam(teamId: string) {
+    const { data, error } = await this.supabase.client
+      .from('evaluations')
+      .select('*')
+      .eq('team_id', teamId);
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
+  }
+
+  async getMineByTeam(teamId: string, userId: string) {
+    const { data, error } = await this.supabase.client
+      .from('evaluations')
+      .select('*')
+      .eq('team_id', teamId)
+      .eq('evaluator_id', userId);
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
+  }
+
+  async upsert(userId: string, body: {
+    teamId: string;
+    evaluateeId: string;
+    score: number;
+    criteriaScores?: {
+      contribution?: number;
+      qualityOfWork?: number;
+      responsibility?: number;
+      communication?: number;
+      teamwork?: number;
+      effort?: number;
+    };
+    comment?: string;
+  }) {
+    if (!body.teamId || !body.evaluateeId || !body.score) {
+      throw new BadRequestException('teamId, evaluateeId, and score are required');
+    }
+
+    const { data, error } = await this.supabase.client
+      .from('evaluations')
+      .upsert(
+        {
+          team_id: body.teamId,
+          evaluator_id: userId,
+          evaluatee_id: body.evaluateeId,
+          score: body.score,
+          contribution: body.criteriaScores?.contribution ?? null,
+          quality_of_work: body.criteriaScores?.qualityOfWork ?? null,
+          responsibility: body.criteriaScores?.responsibility ?? null,
+          communication: body.criteriaScores?.communication ?? null,
+          teamwork: body.criteriaScores?.teamwork ?? null,
+          effort: body.criteriaScores?.effort ?? null,
+          comment: body.comment,
+          submitted_at: new Date().toISOString(),
+        },
+        { onConflict: 'team_id,evaluator_id,evaluatee_id' },
+      )
+      .select()
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
+  }
+
+  async getRubric(teamId: string) {
+    const { data, error } = await this.supabase.client
+      .from('rubric_weights')
+      .select('*')
+      .eq('team_id', teamId)
+      .single();
+
+    if (error) {
+      return {
+        contribution: 16.67,
+        quality_of_work: 16.67,
+        responsibility: 16.67,
+        communication: 16.67,
+        teamwork: 16.67,
+        effort: 16.65,
+      };
+    }
+    return data;
+  }
+
+  async upsertRubric(teamId: string, body: {
+    contribution?: number;
+    qualityOfWork?: number;
+    responsibility?: number;
+    communication?: number;
+    teamwork?: number;
+    effort?: number;
+  }) {
+    const { data, error } = await this.supabase.client
+      .from('rubric_weights')
+      .upsert(
+        {
+          team_id: teamId,
+          contribution: body.contribution,
+          quality_of_work: body.qualityOfWork,
+          responsibility: body.responsibility,
+          communication: body.communication,
+          teamwork: body.teamwork,
+          effort: body.effort,
+        },
+        { onConflict: 'team_id' },
+      )
+      .select()
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
+  }
+}
