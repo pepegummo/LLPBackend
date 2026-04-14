@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { CurrentUser } from '../common/current-user.decorator';
 import { UsersService } from './users.service';
 
@@ -17,6 +17,14 @@ export class UsersController {
     @Body() body: { name?: string; firstName?: string; lastName?: string; bio?: string },
   ) {
     return this.usersService.updateMe(userId, body);
+  }
+
+  @Post('me/change-password')
+  changePassword(
+    @CurrentUser() userId: string,
+    @Body() body: { currentPassword: string; newPassword: string },
+  ) {
+    return this.usersService.changePassword(userId, body.currentPassword, body.newPassword);
   }
 
   @Put('me/contacts')

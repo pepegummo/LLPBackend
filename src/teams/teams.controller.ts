@@ -72,6 +72,23 @@ export class TeamsController {
     return this.teamsService.removeMember(id, memberId);
   }
 
+  @Post('teams/:id/invite-by-email')
+  @HttpCode(HttpStatus.CREATED)
+  inviteByEmail(@Param('id') id: string, @Body() body: { email: string }) {
+    return this.teamsService.inviteByEmail(id, body.email);
+  }
+
+  @Post('teams/:id/invite-link')
+  @HttpCode(HttpStatus.CREATED)
+  createInviteLink(@Param('id') id: string, @CurrentUser() userId: string) {
+    return this.teamsService.createInviteLink(id, userId);
+  }
+
+  @Post('teams/accept-invite/:token')
+  acceptInviteLink(@Param('token') token: string, @CurrentUser() userId: string) {
+    return this.teamsService.acceptInviteLink(token, userId);
+  }
+
   @Put('teams/:id/display-name')
   setDisplayName(
     @Param('id') id: string,

@@ -178,7 +178,8 @@ create table if not exists public.evaluations (
 
 create table if not exists public.rubric_weights (
   id              uuid primary key default gen_random_uuid(),
-  team_id         uuid not null references public.teams(id) on delete cascade unique,
+  workspace_id    uuid not null references public.workspaces(id) on delete cascade unique,
+  enabled         boolean not null default true,
   contribution    numeric not null default 16.67,
   quality_of_work numeric not null default 16.67,
   responsibility  numeric not null default 16.67,
@@ -291,6 +292,26 @@ create table if not exists public.ticket_messages (
   ticket_id  uuid not null references public.tickets(id) on delete cascade,
   sender_id  uuid references public.profiles(id),
   content    text not null,
+  created_at timestamptz not null default now()
+);
+
+-- ============================================================
+-- PROJECT ADMINS
+-- ============================================================
+create table if not exists public.project_admins (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  primary key (project_id, user_id)
+);
+
+-- ============================================================
+-- INVITE LINKS (workspace / project / team)
+-- ============================================================
+create table if not exists public.invite_links (
+  id         uuid primary key default gen_random_uuid(),
+  type       text not null check (type in ('workspace', 'project', 'team')),
+  target_id  uuid not null,
+  created_by uuid not null references public.profiles(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 

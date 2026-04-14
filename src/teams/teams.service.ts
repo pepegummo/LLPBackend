@@ -148,6 +148,51 @@ export class TeamsService {
     if (error) throw new InternalServerErrorException(error.message);
   }
 
+  async inviteByEmail(teamId: string, email: string) {
+    const { data: authData, error: authError } = await this.supabase.client.auth.admin.listUsers();
+    if (authError) throw new InternalServerErrorException(authError.message);
+
+    const authUser = (authData?.users ?? []).find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase(),
+    );
+    if (!authUser) throw new NotFoundException('No user found with that email');
+
+    return this.invite(teamId, authUser.id);
+  }
+
+  async createInviteLink(teamId: string, requesterId: string) {
+    const { data, error } = await this.supabase.client
+      .from('invite_links')
+      .insert({ type: 'team', target_id: teamId, created_by: requesterId })
+      .select('id')
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return { token: data.id };
+  }
+
+  async acceptInviteLink(token: string, userId: string) {
+    const { data: link, error } = await this.supabase.client
+      .from('invite_links')
+      .select('*')
+      .eq('id', token)
+      .eq('type', 'team')
+      .single();
+
+    if (error || !link) throw new NotFoundException('Invalid or expired invite link');
+
+    // Auto-add as member (skip invitation step)
+    const { error: memberError } = await this.supabase.client
+      .from('team_members')
+      .insert({ team_id: link.target_id, user_id: userId, role: 'member' });
+
+    if (memberError && !memberError.message.includes('duplicate')) {
+      throw new InternalServerErrorException(memberError.message);
+    }
+
+    return { teamId: link.target_id };
+  }
+
   async setDisplayName(teamId: string, userId: string, displayName?: string) {
     await this.supabase.client
       .from('team_display_names')

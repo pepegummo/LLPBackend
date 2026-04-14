@@ -50,4 +50,25 @@ export class WorkspacesController {
   ) {
     return this.workspacesService.removeAdmin(id, userId, adminId);
   }
+
+  @Post(':id/admins/by-email')
+  @HttpCode(HttpStatus.CREATED)
+  addAdminByEmail(
+    @Param('id') id: string,
+    @CurrentUser() userId: string,
+    @Body() body: { email: string },
+  ) {
+    return this.workspacesService.addAdminByEmail(id, userId, body.email);
+  }
+
+  @Post(':id/invite-link')
+  @HttpCode(HttpStatus.CREATED)
+  createInviteLink(@Param('id') id: string, @CurrentUser() userId: string) {
+    return this.workspacesService.createInviteLink(id, userId);
+  }
+
+  @Post('accept-invite/:token')
+  acceptInviteLink(@Param('token') token: string, @CurrentUser() userId: string) {
+    return this.workspacesService.acceptInviteLink(token, userId);
+  }
 }

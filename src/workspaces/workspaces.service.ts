@@ -83,7 +83,9 @@ export class WorkspacesService {
       .from('workspace_admins')
       .insert({ workspace_id: workspaceId, user_id: userId });
 
-    if (error) throw new InternalServerErrorException(error.message);
+    if (error && !error.message.includes('duplicate')) {
+      throw new InternalServerErrorException(error.message);
+    }
     return { message: 'Admin added' };
   }
 
@@ -105,5 +107,77 @@ export class WorkspacesService {
       .eq('user_id', adminId);
 
     if (error) throw new InternalServerErrorException(error.message);
+  }
+
+  async addAdminByEmail(workspaceId: string, requesterId: string, email: string) {
+    const { data: ws } = await this.supabase.client
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!ws || ws.owner_id !== requesterId) {
+      throw new ForbiddenException('Only the workspace owner can add admins');
+    }
+
+    const { data: authData, error: authError } = await this.supabase.client.auth.admin.listUsers();
+    if (authError) throw new InternalServerErrorException(authError.message);
+
+    const authUser = (authData?.users ?? []).find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase(),
+    );
+    if (!authUser) throw new NotFoundException('No user found with that email');
+
+    const { error } = await this.supabase.client
+      .from('workspace_admins')
+      .insert({ workspace_id: workspaceId, user_id: authUser.id });
+
+    if (error && !error.message.includes('duplicate')) {
+      throw new InternalServerErrorException(error.message);
+    }
+    return { message: 'Admin added', userId: authUser.id };
+  }
+
+  async createInviteLink(workspaceId: string, requesterId: string) {
+    const { data: ws } = await this.supabase.client
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!ws || ws.owner_id !== requesterId) {
+      throw new ForbiddenException('Only the workspace owner can create invite links');
+    }
+
+    const { data, error } = await this.supabase.client
+      .from('invite_links')
+      .insert({ type: 'workspace', target_id: workspaceId, created_by: requesterId })
+      .select('id')
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return { token: data.id };
+  }
+
+  async acceptInviteLink(token: string, userId: string) {
+    const { data: link, error } = await this.supabase.client
+      .from('invite_links')
+      .select('*')
+      .eq('id', token)
+      .eq('type', 'workspace')
+      .single();
+
+    if (error || !link) throw new NotFoundException('Invalid or expired invite link');
+
+    const { error: insertError } = await this.supabase.client
+      .from('workspace_admins')
+      .insert({ workspace_id: link.target_id, user_id: userId });
+
+    // Ignore duplicate key error (user already admin)
+    if (insertError && !insertError.message.includes('duplicate')) {
+      throw new InternalServerErrorException(insertError.message);
+    }
+
+    return { workspaceId: link.target_id };
   }
 }

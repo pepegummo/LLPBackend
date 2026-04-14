@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { CurrentUser } from '../common/current-user.decorator';
 import { ProjectsService } from './projects.service';
 
 @Controller()
@@ -40,5 +41,37 @@ export class ProjectsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id') id: string) {
     return this.projectsService.delete(id);
+  }
+
+  @Post('projects/:id/admins')
+  @HttpCode(HttpStatus.CREATED)
+  addAdmin(
+    @Param('id') id: string,
+    @CurrentUser() userId: string,
+    @Body() body: { userId?: string; email?: string },
+  ) {
+    if (body.email) return this.projectsService.addAdminByEmail(id, userId, body.email);
+    if (body.userId) return this.projectsService.addAdmin(id, userId, body.userId);
+  }
+
+  @Delete('projects/:id/admins/:adminId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeAdmin(
+    @Param('id') id: string,
+    @Param('adminId') adminId: string,
+    @CurrentUser() userId: string,
+  ) {
+    return this.projectsService.removeAdmin(id, userId, adminId);
+  }
+
+  @Post('projects/:id/invite-link')
+  @HttpCode(HttpStatus.CREATED)
+  createInviteLink(@Param('id') id: string, @CurrentUser() userId: string) {
+    return this.projectsService.createInviteLink(id, userId);
+  }
+
+  @Post('projects/accept-invite/:token')
+  acceptInviteLink(@Param('token') token: string, @CurrentUser() userId: string) {
+    return this.projectsService.acceptInviteLink(token, userId);
   }
 }

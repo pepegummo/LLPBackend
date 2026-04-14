@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -74,15 +76,16 @@ export class EvaluationsService {
     return data;
   }
 
-  async getRubric(teamId: string) {
+  async getRubric(workspaceId: string) {
     const { data, error } = await this.supabase.client
       .from('rubric_weights')
       .select('*')
-      .eq('team_id', teamId)
+      .eq('workspace_id', workspaceId)
       .single();
 
     if (error) {
       return {
+        enabled: false,
         contribution: 16.67,
         quality_of_work: 16.67,
         responsibility: 16.67,
@@ -94,7 +97,8 @@ export class EvaluationsService {
     return data;
   }
 
-  async upsertRubric(teamId: string, body: {
+  async upsertRubric(workspaceId: string, requesterId: string, body: {
+    enabled?: boolean;
     contribution?: number;
     qualityOfWork?: number;
     responsibility?: number;
@@ -102,11 +106,23 @@ export class EvaluationsService {
     teamwork?: number;
     effort?: number;
   }) {
+    const { data: ws } = await this.supabase.client
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!ws) throw new NotFoundException('Workspace not found');
+    if (ws.owner_id !== requesterId) {
+      throw new ForbiddenException('Only the workspace owner can manage rubric weights');
+    }
+
     const { data, error } = await this.supabase.client
       .from('rubric_weights')
       .upsert(
         {
-          team_id: teamId,
+          workspace_id: workspaceId,
+          enabled: body.enabled ?? true,
           contribution: body.contribution,
           quality_of_work: body.qualityOfWork,
           responsibility: body.responsibility,
@@ -114,7 +130,7 @@ export class EvaluationsService {
           teamwork: body.teamwork,
           effort: body.effort,
         },
-        { onConflict: 'team_id' },
+        { onConflict: 'workspace_id' },
       )
       .select()
       .single();

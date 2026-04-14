@@ -32,16 +32,18 @@ export class EvaluationsController {
     return this.evaluationsService.upsert(userId, body);
   }
 
-  @Get('teams/:teamId/rubric')
-  getRubric(@Param('teamId') teamId: string) {
-    return this.evaluationsService.getRubric(teamId);
+  @Get('workspaces/:workspaceId/rubric')
+  getRubric(@Param('workspaceId') workspaceId: string) {
+    return this.evaluationsService.getRubric(workspaceId);
   }
 
-  @Put('teams/:teamId/rubric')
+  @Put('workspaces/:workspaceId/rubric')
   upsertRubric(
-    @Param('teamId') teamId: string,
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() userId: string,
     @Body()
     body: {
+      enabled?: boolean;
       contribution?: number;
       qualityOfWork?: number;
       responsibility?: number;
@@ -50,6 +52,6 @@ export class EvaluationsController {
       effort?: number;
     },
   ) {
-    return this.evaluationsService.upsertRubric(teamId, body);
+    return this.evaluationsService.upsertRubric(workspaceId, userId, body);
   }
 }

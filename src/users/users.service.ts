@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 
@@ -63,6 +64,28 @@ export class UsersService {
 
     if (error) throw new NotFoundException('User not found');
     return data;
+  }
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const { data: authData } = await this.supabase.client.auth.admin.getUserById(userId);
+    if (!authData?.user?.email) throw new NotFoundException('User not found');
+
+    const url = process.env.SUPABASE_URL!;
+    const anonKey = process.env.SUPABASE_ANON_KEY!;
+
+    // Verify current password
+    const verifyRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: anonKey },
+      body: JSON.stringify({ email: authData.user.email, password: currentPassword }),
+    });
+    if (!verifyRes.ok) throw new UnauthorizedException('รหัสผ่านปัจจุบันไม่ถูกต้อง');
+
+    const { error } = await this.supabase.client.auth.admin.updateUserById(userId, {
+      password: newPassword,
+    });
+    if (error) throw new InternalServerErrorException(error.message);
+    return { message: 'Password changed' };
   }
 
   async searchByEmail(email: string) {
