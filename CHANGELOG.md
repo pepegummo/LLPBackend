@@ -1,5 +1,13 @@
 # Changelog — LLPBackend
 
+## [Unreleased] — 2026-04-20
+
+### `src/projects/projects.controller.ts`
+- `create`: เพิ่ม `@CurrentUser()` — ส่ง `requesterId` ไปให้ service เพื่อตรวจสิทธิ์
+
+### `src/projects/projects.service.ts`
+- `create`: เพิ่ม permission check — ต้องเป็น workspace owner หรือ workspace admin เท่านั้น (เดิมไม่ check เลย)
+
 ## [Unreleased] — 2026-04-14
 
 ### `src/evaluations/evaluations.controller.ts`

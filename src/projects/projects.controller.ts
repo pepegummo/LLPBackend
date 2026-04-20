@@ -23,8 +23,8 @@ export class ProjectsController {
 
   @Post('projects')
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() body: { workspaceId: string; name: string; description?: string }) {
-    return this.projectsService.create(body.workspaceId, body.name, body.description);
+  create(@CurrentUser() userId: string, @Body() body: { workspaceId: string; name: string; description?: string }) {
+    return this.projectsService.create(body.workspaceId, userId, body.name, body.description);
   }
 
   @Get('projects/:id')

@@ -22,9 +22,29 @@ export class ProjectsService {
     return data;
   }
 
-  async create(workspaceId: string, name: string, description?: string) {
+  async create(workspaceId: string, requesterId: string, name: string, description?: string) {
     if (!workspaceId || !name) {
       throw new BadRequestException('workspaceId and name are required');
+    }
+
+    const { data: ws } = await this.supabase.client
+      .from('workspaces')
+      .select('owner_id')
+      .eq('id', workspaceId)
+      .single();
+
+    if (!ws) throw new NotFoundException('Workspace not found');
+
+    const isOwner = ws.owner_id === requesterId;
+    if (!isOwner) {
+      const { data: wsAdmin } = await this.supabase.client
+        .from('workspace_admins')
+        .select('user_id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', requesterId)
+        .maybeSingle();
+
+      if (!wsAdmin) throw new ForbiddenException('Only workspace owner or admin can create projects');
     }
 
     const { data, error } = await this.supabase.client
