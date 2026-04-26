@@ -1,5 +1,12 @@
 # Changelog — LLPBackend
 
+## [Unreleased] — 2026-04-26
+
+### Bug Fixes
+
+- **`src/workspaces/workspaces.service.ts`** — `getAll()` เพิ่ม query `team_members → teams → workspace_id` เพื่อรวม workspace ที่ user เป็นสมาชิกทีม; เพิ่ม `workspace_admins(user_id)` join ในทุก query เพื่อให้ `adminIds` ถูกต้อง
+- **`src/tasks/tasks.service.ts`** — แก้ PATCH 500 error เมื่อ body ส่งแค่ `assigneeIds` (ไม่มี field อื่น) โดย fallback เป็น SELECT แทน `update({})`; re-fetch ด้วย `TASK_SELECT` ก่อน return เพื่อให้ frontend ได้ข้อมูลพร้อม join ครบ
+
 ## [Unreleased] — 2026-04-20
 
 ### `src/projects/projects.controller.ts`

@@ -125,14 +125,25 @@ export class TasksService {
     if (body.startDate !== undefined) updates.start_date = body.startDate;
     if (body.manHours !== undefined) updates.man_hours = body.manHours;
 
-    const { data: task, error } = await this.supabase.client
-      .from('tasks')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw new InternalServerErrorException(error.message);
+    let task: Record<string, unknown>;
+    if (Object.keys(updates).length > 0) {
+      const { data, error } = await this.supabase.client
+        .from('tasks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new InternalServerErrorException(error.message);
+      task = data;
+    } else {
+      const { data, error } = await this.supabase.client
+        .from('tasks')
+        .select()
+        .eq('id', id)
+        .single();
+      if (error) throw new InternalServerErrorException(error.message);
+      task = data;
+    }
 
     if (body.assigneeIds !== undefined) {
       await this.supabase.client.from('task_assignees').delete().eq('task_id', id);
@@ -160,7 +171,15 @@ export class TasksService {
       action: `updated task${body.status ? ` → ${body.status}` : ''}`,
     });
 
-    return task;
+    // Re-fetch with full joins so frontend gets complete task data
+    const { data: fullTask, error: fullError } = await this.supabase.client
+      .from('tasks')
+      .select(TASK_SELECT)
+      .eq('id', id)
+      .single();
+
+    if (fullError) throw new InternalServerErrorException(fullError.message);
+    return fullTask;
   }
 
   async delete(id: string) {

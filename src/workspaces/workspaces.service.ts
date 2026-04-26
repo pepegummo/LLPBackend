@@ -14,7 +14,7 @@ export class WorkspacesService {
   async getAll(userId: string) {
     const { data: owned } = await this.supabase.client
       .from('workspaces')
-      .select('*')
+      .select('*, workspace_admins(user_id)')
       .eq('owner_id', userId);
 
     const { data: adminOf } = await this.supabase.client
@@ -24,10 +24,30 @@ export class WorkspacesService {
 
     const adminIds = (adminOf ?? []).map((r) => r.workspace_id);
     const { data: administered } = adminIds.length
-      ? await this.supabase.client.from('workspaces').select('*').in('id', adminIds)
+      ? await this.supabase.client
+          .from('workspaces')
+          .select('*, workspace_admins(user_id)')
+          .in('id', adminIds)
       : { data: [] };
 
-    const all = [...(owned ?? []), ...(administered ?? [])];
+    // Workspaces where user is a team member
+    const { data: memberTeams } = await this.supabase.client
+      .from('team_members')
+      .select('teams(workspace_id)')
+      .eq('user_id', userId);
+
+    const memberWsIds = (memberTeams ?? [])
+      .map((r: any) => r.teams?.workspace_id)
+      .filter(Boolean);
+
+    const { data: memberOf } = memberWsIds.length
+      ? await this.supabase.client
+          .from('workspaces')
+          .select('*, workspace_admins(user_id)')
+          .in('id', memberWsIds)
+      : { data: [] };
+
+    const all = [...(owned ?? []), ...(administered ?? []), ...(memberOf ?? [])];
     return Array.from(new Map(all.map((w) => [w.id, w])).values());
   }
 
